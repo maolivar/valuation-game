@@ -1,0 +1,8 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Welcome to the Valuation Game!</h2>
+<p>In this game, your group will be deciding the price on every week during {{ nperiods }} consecutive weeks.
+In every week, a random number of customers will show up to buy. Each customer has a valuation and will buy if
+    their valuation is above the selling price.</p>
+<p> Your objective is to choose prices that maximize the total revenue over the selling period. </p>
+{% endblock %}

@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Welcome to the Valuation Game!</title>
+</head>
+<body>
+<h1> Valuation Game</h1>
+
+{% block content %}
+{% endblock %}
+
+<h2>WEEK {{ stage }} </h2>
+Enter the price for this week.
+<form action="" method="get">
+     <input type="hidden" value="{{ stage }}" name="stage" />
+     <input type="hidden" value="{{ sales_hist }}" name="sales_hist" />
+     <input type="hidden" value="{{ price_hist }}" name="price_hist" />
+     Price: <input type="text" name="price">
+     <input type="submit" value="Submit price">
+ </form>
+
+</body>
+</html>
