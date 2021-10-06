@@ -145,5 +145,8 @@ def draw_graph(price_hist):
     return fig
 
 # Following line is to run locally
+#if __name__ == "__main__":
+#    app.run(host="127.0.0.1", port=8080, debug=True)
+
 if __name__ == "__main__":
-    app.run(host="127.0.0.1", port=8080, debug=True)
+    app.run(debug=True)
