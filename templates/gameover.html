@@ -1,20 +1,17 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Welcome to the Valuation Game!</title>
-</head>
+{% extends "base.html" %}
 
-<h1> Valuation Game</h1>
-
-<body>
-<img src='data:image/png;base64,{{ data_plot }}'/>
-
-<p>Sales in the last period were {{ sales }}.</p>
-
+{% block form %}
 <h2>Game ended.</h2>
+{% if has_inv %}
+Your ending inventory is {{ inv }}. <br>
+{% endif %}
 
+{{ cumsales }} customers purchased.
 Your total revenue was {{ revenue }}.
 
-</body>
-</html>
+<form action="/results/{{ gametype }}" method="get">
+     <input type="hidden" value="{{ price_hist }}" name="price_hist" />
+     Group name: <input type="text" name="groupid" required>
+     <input type="submit" value="Submit results">
+ </form>
+{% endblock %}

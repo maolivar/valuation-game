@@ -1,24 +1,35 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Welcome to the Valuation Game!</title>
-</head>
-<body>
-<h1> Valuation Game</h1>
+{% extends 'head_template.html' %}
 
-{% block content %}
+{% block body %}
+    <div class="container">
+        {% block content %}
+            <img src='data:image/png;base64,{{ data_plot }}'/>
+
+            <p> <strong> {{ sales }} customers </strong> (out of {{ ncust }} that showed up) chose to purchase.</p>
+        {% endblock %}
+    </div>
+
+    <div class="container">
+    {% block form %}
+        <h2>Week {{ stage }} </h2>
+        {% if has_inv %}
+            Your current inventory is {{ inv }}. <br>
+        {% endif %}
+
+        {% if not valuetype == 'full' %}
+            <p> This week, incoming customers have a {{ valuetype }} valuation.</p>
+        {% endif %}
+
+        Enter the price for this week.
+        <form action="" method="get">
+             <input type="hidden" value="{{ stage }}" name="stage" />
+            {% if has_inv %}
+                <input type="hidden" value="{{ inv }}" name="inv" />
+            {% endif %}
+             <input type="hidden" value="{{ price_hist }}" name="price_hist" />
+             Price: <input type="number" name="price" required>
+             <input type="submit" value="Submit price">
+         </form>
+    {% endblock %}
+
 {% endblock %}
-
-<h2>WEEK {{ stage }} </h2>
-Enter the price for this week.
-<form action="" method="get">
-     <input type="hidden" value="{{ stage }}" name="stage" />
-     <input type="hidden" value="{{ sales_hist }}" name="sales_hist" />
-     <input type="hidden" value="{{ price_hist }}" name="price_hist" />
-     Price: <input type="text" name="price">
-     <input type="submit" value="Submit price">
- </form>
-
-</body>
-</html>

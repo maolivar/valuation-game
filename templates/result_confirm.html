@@ -1,0 +1,19 @@
+{% extends "head_template.html" %}
+
+{% block body %}
+    <h2> Results submitted succesfully. </h2>
+
+    {% for table in tables %}
+                {{ table|safe }}
+    {% endfor %}
+
+    {% if nextgame %}
+        <p>
+        <h4> Wait for instructions to start the next simulation. </h4>
+        <a href = {{ url_for('index', gametype= nextgame) }} class="link_button"> Start next simulation </a>
+        </p>
+    {% else %}
+        <h3> There are no more simulations.</h3>
+    {% endif %}
+
+{% endblock %}
