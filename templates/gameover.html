@@ -9,9 +9,10 @@ Your ending inventory is {{ inv }}. <br>
 {{ cumsales }} customers purchased.
 Your total revenue was {{ revenue }}.
 
-<form action="/results/{{ gametype }}" method="get">
+<form action= {{ url_for("send_results", gametype= gametype) }} method="post">
      <input type="hidden" value="{{ price_hist }}" name="price_hist" />
-     Group name: <input type="text" name="groupid" required>
+     <input type="hidden" value="{{ gameid }}" name="gameid" />
+     <input type="hidden" value= "{{ groupname }}" name="groupname" required>
      <input type="submit" value="Submit results">
  </form>
 {% endblock %}

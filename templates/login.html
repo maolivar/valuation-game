@@ -1,0 +1,23 @@
+{% extends 'head_template.html' %}
+
+{% block body %}
+    <div class="container">
+        {% block content %}
+
+        <h1>Pricing game - Login </h1>
+
+        {% endblock %}
+    </div>
+
+    <div class="container">
+    {% block form %}
+
+        Login to the game
+        <form action= {{ url_for('index', gametype="base") }} method="post">
+             Game password: <input type="number" name="gameid" required>
+             Group name: <input  name="groupname" required>
+             <input type="submit" value="enter game">
+         </form>
+    {% endblock %}
+
+{% endblock %}

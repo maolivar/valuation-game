@@ -84,10 +84,23 @@ for g in GAMETYPES:
 
 # ------------ APP FUNCTIONS -------------------------
 
-@app.route('/', defaults={'gametype' : 'base'})
-@app.route("/<string:gametype>")
+@app.route('/login')
+def login():
+    #return ("""<h2> This is the login page </h2>""")
+    return render_template('login.html')
+
+
+
+@app.route("/<string:gametype>", methods = ['POST'])
 def index(gametype):
     global NPERIODS, VALUATIONS, GAMETYPES, HASINV, GAMEVALUES
+
+    gameid = request.form.get("gameid")
+    groupname = request.form.get("groupname")
+    if int(gameid) != GAMEPASSWD:
+        return ("""<h2> Invalid game password </h2> \n
+                <a href ="/login" class="link_button"> Back to login </a>""")
+
 
     if not gametype in GAMETYPES:
         return("""<h2> URL not found </h2>""")
@@ -96,13 +109,13 @@ def index(gametype):
         inventory = None
     else:
         init_inv = INITINV
-        inventory = request.args.get("inv")
+        inventory = request.form.get("inv")
 
     valuations = VALUATIONS[gametype]
 
-    price = request.args.get("price")
-    stage = request.args.get("stage")
-    price_hist = request.args.get("price_hist")
+    price = request.form.get("price")
+    stage = request.form.get("stage")
+    price_hist = request.form.get("price_hist")
 
     if init_inv and inventory == None:
         # Sets inventory to initial inventory in the first stage
@@ -143,13 +156,15 @@ def index(gametype):
         data = base64.b64encode(buf.getbuffer()).decode("ascii")
 
     if stagenum == 1:
-        return render_template('welcome.html', has_inv = HASINV[gametype],
+        return render_template('welcome.html', gameid=GAMEPASSWD, groupname= groupname,
+                               has_inv = HASINV[gametype],
                                valuetype = GAMEVALUES[gametype][stagenum-1],
                                value_list = GAMEVALUES[gametype],
                                stage = stage, inv = inventory,
                                nperiods = str(NPERIODS))
     elif stagenum <= NPERIODS:
-        return render_template('base.html', has_inv = HASINV[gametype],
+        return render_template('base.html', gameid=GAMEPASSWD, groupname= groupname,
+                               has_inv = HASINV[gametype],
                                valuetype=GAMEVALUES[gametype][stagenum - 1],
                                sales = int(sales), ncust = ncust,
                                stage = stage, data_plot = data,
@@ -159,14 +174,15 @@ def index(gametype):
         price_arr = csvstr_to_numarr(price_hist)
         (sales_arr,ncust_arr)=get_sales_hist(price_arr,init_inv,valuations)
         totrevenue= np.dot(price_arr,sales_arr)
-        return render_template('gameover.html', has_inv = HASINV[gametype], gametype= gametype,
+        return render_template('gameover.html', gameid= GAMEPASSWD, groupname= groupname,
+                               has_inv = HASINV[gametype], gametype= gametype,
                                sales = int(sales), ncust = ncust,
                                data_plot = data, inv = inventory,
                                price_hist = price_hist,
                                cumsales= sum(sales_arr), revenue=totrevenue)
 
-@app.route('/results/', defaults={'gametype' : 'base'})
-@app.route("/results/<string:gametype>")
+
+@app.route("/results/<string:gametype>", methods = ['POST'])
 def send_results(gametype):
     global VALUATIONS, GAMETYPES, HASINV
 
@@ -177,11 +193,12 @@ def send_results(gametype):
         init_inv = INITINV
     else:
         init_inv = None
-    price_hist = request.args.get("price_hist")
-    groupid = request.args.get("groupid")
+    price_hist = request.form.get("price_hist")
+    groupname = request.form.get("groupname")
+    gameid = request.form.get("gameid")
     if price_hist:
         currtime = datetime.datetime.now()
-        df = gen_results_table(timestamp=str(currtime), gameid= GAMEPASSWD, gametype= gametype, groupid=groupid,
+        df = gen_results_table(timestamp=str(currtime), gameid= GAMEPASSWD, gametype= gametype, groupid=groupname,
                                price_hist= price_hist, init_inv= init_inv, valuations= valuations)
         try:
             with sql.connect(DATABASE) as con:
@@ -200,7 +217,7 @@ def send_results(gametype):
                 nextgame = None
 
             return render_template("result_confirm.html", tables= [df.to_html(classes='data',header="true")],
-                                   nextgame= nextgame )
+                                   nextgame= nextgame, gameid = GAMEPASSWD, groupname= groupname )
         else:
             return("""<h1> Error: results could not be saved</h1>"""+error_msg)
     else:

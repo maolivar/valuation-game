@@ -2,6 +2,7 @@
 
 {% block body %}
     <div class="container">
+        <h2> Group: {{ groupname }}</h2>
         {% block content %}
             <img src='data:image/png;base64,{{ data_plot }}'/>
 
@@ -21,7 +22,9 @@
         {% endif %}
 
         Enter the price for this week.
-        <form action="" method="get">
+        <form action="" method="post">
+            <input type="hidden" value="{{ gameid }}" name="gameid" />
+            <input type="hidden" value="{{ groupname }}" name="groupname" />
              <input type="hidden" value="{{ stage }}" name="stage" />
             {% if has_inv %}
                 <input type="hidden" value="{{ inv }}" name="inv" />
