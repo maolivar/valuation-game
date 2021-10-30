@@ -17,6 +17,13 @@ from flask import Flask, render_template
 from flask import request
 from matplotlib.figure import Figure
 
+from bokeh.embed import components
+from bokeh.plotting import figure
+from bokeh.resources import INLINE
+from bokeh.models import ColumnDataSource, Range1d
+from bokeh.core.properties import value
+from bokeh.layouts import column
+
 
 
 app = Flask(__name__)
@@ -147,13 +154,21 @@ def index(gametype):
 
     stage = str(stagenum)
 
-    if stagenum>1:
-        fig = draw_graph(price_hist,init_inv,valuations)
-        # Save it to a temporary buffer.
-        buf = BytesIO()
-        fig.savefig(buf, format="png")
-        # Embed the result in the html output.
-        data = base64.b64encode(buf.getbuffer()).decode("ascii")
+    # Matplotlib graph
+    #fig = draw_graph(price_hist,init_inv,valuations)
+    # Save it to a temporary buffer.
+    #buf = BytesIO()
+    #fig.savefig(buf, format="png")
+    # Embed the result in the html output.
+    #data = base64.b64encode(buf.getbuffer()).decode("ascii")
+
+    # Bokeh graph
+    bfig = draw_bokeh_graph(price_hist, init_inv, valuations)
+    # grab the static resources
+    js_resources = INLINE.render_js()
+    css_resources = INLINE.render_css()
+    # render template
+    script, div = components(bfig)
 
     if stagenum == 1:
         return render_template('welcome.html', gameid=GAMEPASSWD, groupname= groupname,
@@ -161,15 +176,25 @@ def index(gametype):
                                valuetype = GAMEVALUES[gametype][stagenum-1],
                                value_list = GAMEVALUES[gametype],
                                stage = stage, inv = inventory,
-                               nperiods = str(NPERIODS))
+                               nperiods = str(NPERIODS),
+                               plot_script=script,
+                               plot_div=div,
+                               js_resources=js_resources,
+                               css_resources=css_resources
+                               )
     elif stagenum <= NPERIODS:
         return render_template('base.html', gameid=GAMEPASSWD, groupname= groupname,
                                has_inv = HASINV[gametype],
                                valuetype=GAMEVALUES[gametype][stagenum - 1],
                                sales = int(sales), ncust = ncust,
-                               stage = stage, data_plot = data,
+                               stage = stage,
                                inv = inventory, init_inv = init_inv,
-                               price_hist = price_hist)
+                               price_hist = price_hist,
+                               plot_script=script,
+                               plot_div=div,
+                               js_resources=js_resources,
+                               css_resources=css_resources
+                               )
     else:
         price_arr = csvstr_to_numarr(price_hist)
         (sales_arr,ncust_arr)=get_sales_hist(price_arr,init_inv,valuations)
@@ -177,8 +202,12 @@ def index(gametype):
         return render_template('gameover.html', gameid= GAMEPASSWD, groupname= groupname,
                                has_inv = HASINV[gametype], gametype= gametype,
                                sales = int(sales), ncust = ncust,
-                               data_plot = data, inv = inventory,
+                               inv = inventory,
                                price_hist = price_hist,
+                               plot_script=script,
+                               plot_div=div,
+                               js_resources=js_resources,
+                               css_resources=css_resources,
                                cumsales= sum(sales_arr), revenue=totrevenue)
 
 
@@ -229,6 +258,28 @@ def retrieve_results():
     df = pd.read_sql('SELECT * FROM results', con=con)
     con.close()
     return(df.to_html())
+
+
+@app.route('/bokeh_test')
+def bokeh_test():
+    valuations = VALUATIONS['base']
+    price_hist="500000,300000,600000"
+    bfig = draw_bokeh_graph(price_hist= price_hist, init_inv=None, valuations= valuations)
+    # grab the static resources
+    js_resources = INLINE.render_js()
+    css_resources = INLINE.render_css()
+    # render template
+    script, div = components(bfig)
+    html = render_template(
+        'test.html',
+        plot_script=script,
+        plot_div=div,
+        js_resources=js_resources,
+        css_resources=css_resources,
+    )
+    return html
+
+
 
 
 # -------------- AUXILIARY FUNCTIONS ------------------------
@@ -294,6 +345,56 @@ def draw_graph(price_hist, init_inv,valuations):
     fig.tight_layout()
 
     return fig
+
+def draw_bokeh_graph(price_hist, init_inv, valuations):
+
+    global NPERIODS
+    XMAX = NPERIODS + 2  # length of the x-axis, extended to put label
+    price_list = csvstr_to_numarr(price_hist)
+    price_arr = np.array(price_list)
+    x = list(map(str,range(1, len(price_list) + 1)))
+    weeks = list(map(str,range(1,NPERIODS+1)))
+
+    # Graph 1: price history
+    g = figure( plot_height=250, x_range= weeks,
+                toolbar_location=None, title="Price history")
+    g.line(x,price_arr, line_width=2)
+    g.circle(x,price_arr, fill_color='white', size=8)
+    g.xaxis.axis_label = "Week"
+    g.yaxis.axis_label = "Price"
+    g.axis.minor_tick_line_color = None
+    g.outline_line_color = None
+    g.xgrid.grid_line_color = None
+
+    # Figure 2: bar graph of sales and lost sales
+    (sales_arr, ncust_arr) = get_sales_hist(price_list, init_inv, valuations)
+    lostsales_arr = ncust_arr - sales_arr
+
+    colstack = ['sales','no purchase']
+    data = {'week':x,
+            'sales': sales_arr,
+            'no purchase':lostsales_arr}
+
+    colors = ["#718dbf", "#e84d60"]
+
+    source = ColumnDataSource(data=data)
+
+    p = figure( plot_height=250, x_range= weeks,
+                toolbar_location=None, title="Number of customers and sales per week")
+
+    p.vbar_stack(colstack, x='week', width=0.9, color=colors, source=source, legend=[value(x) for x in colstack])
+    p.x_range.range_padding = 0.1
+    p.xgrid.grid_line_color = None
+    p.y_range.start = 0
+    p.y_range.end = NUMCUST_HIGH + 5
+    p.legend.location = "top_right"
+    p.legend.orientation = "horizontal"
+    p.axis.minor_tick_line_color = None
+    p.outline_line_color = None
+    p.xaxis.axis_label = "Week"
+    p.yaxis.axis_label = "Demand (units)"
+
+    return column(g,p)
 
 def gen_results_table(timestamp, gameid, gametype, groupid, price_hist, init_inv,valuations):
     """ Calculates results table from price_hist string"""

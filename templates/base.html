@@ -1,10 +1,16 @@
 {% extends 'head_template.html' %}
 
+{% block js_head %}
+    {{ js_resources|indent(4)|safe }}
+    {{ css_resources|indent(4)|safe }}
+    {{ plot_script|indent(4)|safe }}
+{% endblock %}
+
 {% block body %}
     <div class="container">
         <h2> Group: {{ groupname }}</h2>
         {% block content %}
-            <img src='data:image/png;base64,{{ data_plot }}'/>
+                {{ plot_div|indent(4)|safe }}
 
             <p> <strong> {{ sales }} customers </strong> (out of {{ ncust }} that showed up) chose to purchase.</p>
         {% endblock %}
