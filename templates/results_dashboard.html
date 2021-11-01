@@ -1,0 +1,35 @@
+{% extends "head_template.html" %}
+
+{% block js_head %}
+    {{ js_resources|indent(4)|safe }}
+    {{ css_resources|indent(4)|safe }}
+    {{ plot_script|indent(4)|safe }}
+{% endblock %}
+
+{% block body %}
+    <h2> Game {{ gameid }} </h2>
+    <h3> Results for simulation round {{ gametype }} </h3>
+
+    {{ plot_div|indent(4)|safe }}
+    <p>
+    <form action="" method="get">
+        Game password: <input type="number" value="{{ gameid }}" name="gameid" required/>
+        <label for="gametype">Simulation round:</label>
+        <select id="gametype" name="gametype" value=""{{ gametype }}">
+            {% for g in typelist %}
+                {% if g == gametype %}
+                    <option value="{{ g }}" selected>{{ g }}</option>
+                {% else %}
+                    <option value="{{ g }}">{{ g }}</option>
+                {% endif %}
+            {% endfor %}
+        </select>
+        <p>
+
+             <input type="submit" value="Refresh">
+            <input type="reset">
+    </form>
+
+
+
+{% endblock %}

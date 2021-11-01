@@ -10,8 +10,9 @@ import numpy as np
 import pandas as pd
 import sqlite3 as sql
 import datetime
+import itertools
 
-from io import BytesIO
+#from io import BytesIO
 
 from flask import Flask, render_template
 from flask import request
@@ -20,9 +21,10 @@ from matplotlib.figure import Figure
 from bokeh.embed import components
 from bokeh.plotting import figure
 from bokeh.resources import INLINE
-from bokeh.models import ColumnDataSource, Range1d
+from bokeh.models import ColumnDataSource, Range1d, Legend, HoverTool
 from bokeh.core.properties import value
 from bokeh.layouts import column
+from bokeh.palettes import Category10, Category20, inferno
 
 
 
@@ -252,6 +254,41 @@ def send_results(gametype):
     else:
         return("""Cannot show results: Invalid price input""")
 
+@app.route('/dashboard', methods=['POST','GET'])
+def results_dashboard():
+    if request.method == 'POST':
+        gameid_str = request.form.get('gameid')
+        gametype = request.form.get('gametype')
+    else:
+        gameid_str = request.args.get('gameid')
+        gametype = request.args.get('gametype')
+
+    gameid = int(gameid_str)
+
+    fig1 = draw_results_allgroups(gameid= gameid, gametype= gametype)
+    fig2 = overall_standing(gameid= gameid)
+    # grab the static resources
+    js_resources = INLINE.render_js()
+    css_resources = INLINE.render_css()
+    # render template
+    fig = column(fig1, fig2)
+    script, div = components(fig)
+
+    html = render_template('results_dashboard.html',
+                           gameid= gameid,
+                           gametype= gametype,
+                           typelist = GAMETYPES,
+                           plot_script=script,
+                           plot_div=div,
+                           js_resources=js_resources,
+                           css_resources=css_resources
+                           )
+    return (html)
+
+
+
+
+
 @app.route('/get_results')
 def retrieve_results():
     con = sql.connect(DATABASE)
@@ -262,22 +299,22 @@ def retrieve_results():
 
 @app.route('/bokeh_test')
 def bokeh_test():
-    valuations = VALUATIONS['base']
-    price_hist="500000,300000,600000"
-    bfig = draw_bokeh_graph(price_hist= price_hist, init_inv=None, valuations= valuations)
+    fig1 = draw_results_allgroups(gameid=12345, gametype="inv")
+    fig2 = overall_standing(gameid=12345)
     # grab the static resources
     js_resources = INLINE.render_js()
     css_resources = INLINE.render_css()
     # render template
-    script, div = components(bfig)
-    html = render_template(
-        'test.html',
-        plot_script=script,
-        plot_div=div,
-        js_resources=js_resources,
-        css_resources=css_resources,
-    )
-    return html
+    fig = column(fig1,fig2)
+    script, div = components(fig)
+
+    html = render_template('test.html',
+                           plot_script=script,
+                           plot_div=div,
+                           js_resources=js_resources,
+                           css_resources=css_resources
+                           )
+    return (html)
 
 
 
@@ -396,6 +433,76 @@ def draw_bokeh_graph(price_hist, init_inv, valuations):
 
     return column(g,p)
 
+def draw_results_allgroups(gameid, gametype):
+    with  sql.connect(DATABASE) as con:
+        df = pd.read_sql("""SELECT * FROM results WHERE gameid=%s AND gametype='%s'"""%(gameid, gametype), con=con)
+    df  #DEBUG
+    names = df['groupid'].unique()
+    print(names) # DEBUG
+    colors = color_gen(len(names))
+    print(colors)
+    p = figure(plot_height=250,
+               toolbar_location=None, title="Price history for all groups")
+    p_dict = dict()
+    p_circ_dict = dict()
+    for n,c in zip(names,colors):
+        source = ColumnDataSource(data=df.loc[df['groupid']==n])
+        p_dict[n] = p.line(x='period',y='price', source=source, color=c )
+        p_circ_dict[n] = p.circle(x='period', y='price', fill_color=c, size=5, source=source)
+
+    legend = Legend(items=[(x, [p_circ_dict[x]]) for x in p_circ_dict])
+    p.add_layout(legend,'right')
+    p.xaxis.axis_label = 'Week'
+    p.yaxis.axis_label = 'Price'
+
+    # TO DO
+    # - Add sales for this round, bar graph
+    # - Add hover tools
+    return p
+
+def overall_standing(gameid):
+    with  sql.connect(DATABASE) as con:
+        df = pd.read_sql("""SELECT groupid, gametype, sum(price*sales) AS revenue
+                            FROM results
+                            WHERE (gameid='%s')
+                            GROUP BY groupid, gametype"""%(gameid), con=con)
+
+    games = list(df['gametype'].unique())
+    colors = color_gen(len(games))
+
+
+    # Calculate total revenue to sort
+    totrevenue = df.groupby("groupid", as_index=False)['revenue'].sum()
+    totrevenue.sort_values(by=['revenue'], inplace=True)
+    names = totrevenue['groupid'].unique()
+
+    # Pivot table to create stacked chart
+    df2 = df.pivot(index='groupid', columns='gametype', values='revenue').reset_index()
+    df2 = df2.fillna(0)
+
+    source = ColumnDataSource(df2)
+
+    p = figure(plot_height=250, y_range = names,
+               toolbar_location=None, title="Overall standing")
+    p.hbar_stack(games, y='groupid', height=0.8, source=source, color=colors,  legend_label=games)
+
+    return p
+
+
+
+def color_gen(ncolors):
+    """ generates list of colors for bokeh graph"""
+    #yield from itertools.cycle(Category10[10])
+    if ncolors < 3:
+        colorlist = ['red','blue']
+    elif ncolors <= 10:
+        colorlist = Category10[ncolors]
+    elif ncolors <= 20:
+        colorlist = Category20[ncolors]
+    else:
+        colorlist = inferno(ncolors)
+    return colorlist
+
 def gen_results_table(timestamp, gameid, gametype, groupid, price_hist, init_inv,valuations):
     """ Calculates results table from price_hist string"""
     price = csvstr_to_numarr(price_hist)
@@ -420,6 +527,9 @@ def gen_results_table(timestamp, gameid, gametype, groupid, price_hist, init_inv
 
     df = pd.DataFrame(data)
     return df
+
+
+
 
 
 
