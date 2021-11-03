@@ -7,15 +7,22 @@
 {% endblock %}
 
 {% block body %}
-    <h2> Game {{ gameid }} </h2>
-    <h3> Results for simulation round {{ gametype }} </h3>
+    <h2> Game Password {{ gameid }} </h2>
+    <h2> Results for simulation round {{ gametype }} </h2>
 
-    {{ plot_div|indent(4)|safe }}
-    <p>
-    <form action="" method="get">
-        Game password: <input type="number" value="{{ gameid }}" name="gameid" required/>
+    <form action="" method="post">
+        <label for="gameid">Game id:</label>
+        <select id="gameid" name="gameid" >
+            {% for g in gamelist %}
+                {% if g == gameid %}
+                    <option value="{{ g }}" selected>{{ g }}</option>
+                {% else %}
+                    <option value="{{ g }}">{{ g }}</option>
+                {% endif %}
+            {% endfor %}
+        </select>
         <label for="gametype">Simulation round:</label>
-        <select id="gametype" name="gametype" value=""{{ gametype }}">
+        <select id="gametype" name="gametype" >
             {% for g in typelist %}
                 {% if g == gametype %}
                     <option value="{{ g }}" selected>{{ g }}</option>
@@ -29,6 +36,10 @@
              <input type="submit" value="Refresh">
             <input type="reset">
     </form>
+
+<p>    {{ plot_div|indent(4)|safe }}
+
+</p>
 
 
 

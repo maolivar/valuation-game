@@ -32,7 +32,6 @@ app = Flask(__name__)
 
 FILEVALUATIONS = "valuations.txt"
 DATABASE = 'gameresults.sqlite' # Database file to store results
-GAMEPASSWD = 12345          # Default password to enter the game, also used as game identifier
 
 NPERIODS = 5                # Number of weeks in simulation
 NPERIODS_HIGH = 1           # Number of weeks with high valuation in price discrimination setting
@@ -51,6 +50,7 @@ GAMEVALUES = {'base':['full']*NPERIODS,
 HIGHVALUE_CUT = 0.2
 NUMCUST_LOW = 10
 NUMCUST_HIGH = 20
+SEED = 1975
 
 # ----------------------------------------------
 
@@ -69,6 +69,7 @@ VALUEDIST['high'] = valdist[numcut:(numobs-1)]
 VALUEDIST['low'] = valdist[0:numcut]
 
 VALUATIONS = {}
+random.seed(SEED)
 
 for g in GAMETYPES:
     valuations = []
@@ -79,16 +80,19 @@ for g in GAMETYPES:
     VALUATIONS[g] = valuations
 
 
-# CREATE DATABASE
-# con = sql.connect(DATABASE)
-# cur = con.cursor()
+# CREATE TABLES IF THEY DON'T EXIST
+
+con = sql.connect(DATABASE)
+cur = con.cursor()
 #
 # # Create results table
-# cur.execute("""CREATE TABLE IF NOT EXISTS results
-#                 (timestamp text, gameid text, gametype text, groupid text,
-#                  period integer, price real, ncust integer, sales integer, end_inv integer)""")
-# con.commit()
-# con.close()
+cur.execute("""CREATE TABLE IF NOT EXISTS results
+                 (timestamp text, gameid text, gametype text, groupid text,
+                  period integer, price real, ncust integer, sales integer, end_inv integer)""")
+cur.execute("""CREATE TABLE IF NOT EXISTS games 
+                (gameid integer, gamestatus text, timestamp text)""")
+con.commit()
+con.close()
 
 
 # ------------ APP FUNCTIONS -------------------------
@@ -106,7 +110,8 @@ def index(gametype):
 
     gameid = request.form.get("gameid")
     groupname = request.form.get("groupname")
-    if int(gameid) != GAMEPASSWD:
+    gamelist = get_active_games()
+    if int(gameid) not in gamelist:
         return ("""<h2> Invalid game password </h2> \n
                 <a href ="/login" class="link_button"> Back to login </a>""")
 
@@ -173,7 +178,7 @@ def index(gametype):
     script, div = components(bfig)
 
     if stagenum == 1:
-        return render_template('welcome.html', gameid=GAMEPASSWD, groupname= groupname,
+        return render_template('welcome.html', gameid=gameid, groupname= groupname,
                                has_inv = HASINV[gametype],
                                valuetype = GAMEVALUES[gametype][stagenum-1],
                                value_list = GAMEVALUES[gametype],
@@ -185,7 +190,7 @@ def index(gametype):
                                css_resources=css_resources
                                )
     elif stagenum <= NPERIODS:
-        return render_template('base.html', gameid=GAMEPASSWD, groupname= groupname,
+        return render_template('base.html', gameid=gameid, groupname= groupname,
                                has_inv = HASINV[gametype],
                                valuetype=GAMEVALUES[gametype][stagenum - 1],
                                sales = int(sales), ncust = ncust,
@@ -201,7 +206,7 @@ def index(gametype):
         price_arr = csvstr_to_numarr(price_hist)
         (sales_arr,ncust_arr)=get_sales_hist(price_arr,init_inv,valuations)
         totrevenue= np.dot(price_arr,sales_arr)
-        return render_template('gameover.html', gameid= GAMEPASSWD, groupname= groupname,
+        return render_template('gameover.html', gameid= gameid, groupname= groupname,
                                has_inv = HASINV[gametype], gametype= gametype,
                                sales = int(sales), ncust = ncust,
                                inv = inventory,
@@ -229,7 +234,7 @@ def send_results(gametype):
     gameid = request.form.get("gameid")
     if price_hist:
         currtime = datetime.datetime.now()
-        df = gen_results_table(timestamp=str(currtime), gameid= GAMEPASSWD, gametype= gametype, groupid=groupname,
+        df = gen_results_table(timestamp=str(currtime), gameid= gameid, gametype= gametype, groupid=groupname,
                                price_hist= price_hist, init_inv= init_inv, valuations= valuations)
         try:
             with sql.connect(DATABASE) as con:
@@ -248,7 +253,7 @@ def send_results(gametype):
                 nextgame = None
 
             return render_template("result_confirm.html", tables= [df.to_html(classes='data',header="true")],
-                                   nextgame= nextgame, gameid = GAMEPASSWD, groupname= groupname )
+                                   nextgame= nextgame, gameid = gameid, groupname= groupname )
         else:
             return("""<h1> Error: results could not be saved</h1>"""+error_msg)
     else:
@@ -256,14 +261,29 @@ def send_results(gametype):
 
 @app.route('/dashboard', methods=['POST','GET'])
 def results_dashboard():
+    isnew = 0   # default is an existing game
     if request.method == 'POST':
         gameid_str = request.form.get('gameid')
         gametype = request.form.get('gametype')
+        isnew_str = request.form.get('isnew')
+        if isnew_str:
+            isnew = int(isnew_str)
     else:
         gameid_str = request.args.get('gameid')
         gametype = request.args.get('gametype')
 
     gameid = int(gameid_str)
+
+    if isnew == 1:  # if new game, insert into database as open game
+        currtime = datetime.datetime.now()
+        data = {'gameid': [gameid], 'gamestatus': ['open'], 'timestamp': [str(currtime)]}
+        df = pd.DataFrame(data)
+        with sql.connect(DATABASE) as con:
+            df.to_sql('games', con=con, if_exists='append', index=False)
+            con.commit()
+
+    # get list of open games
+    gamelist = get_active_games()
 
     fig1 = draw_results_allgroups(gameid= gameid, gametype= gametype)
     fig2 = overall_standing(gameid= gameid)
@@ -278,12 +298,28 @@ def results_dashboard():
                            gameid= gameid,
                            gametype= gametype,
                            typelist = GAMETYPES,
+                           gamelist = gamelist,
                            plot_script=script,
                            plot_div=div,
                            js_resources=js_resources,
                            css_resources=css_resources
                            )
     return (html)
+
+
+@app.route('/adminLogin')
+def admin_login():
+    # Retrieve open games from table
+    gamelist = get_active_games()
+    # first game id to try
+    newgameid = 12345
+
+    while newgameid in gamelist:
+        newgameid = random.randint(10000, 99999)
+    html = render_template('login_admin.html',
+                           newgameid = newgameid,
+                           gamelist = gamelist)
+    return(html)
 
 
 
@@ -436,9 +472,7 @@ def draw_bokeh_graph(price_hist, init_inv, valuations):
 def draw_results_allgroups(gameid, gametype):
     with  sql.connect(DATABASE) as con:
         df = pd.read_sql("""SELECT * FROM results WHERE gameid=%s AND gametype='%s'"""%(gameid, gametype), con=con)
-    df  #DEBUG
     names = df['groupid'].unique()
-    print(names) # DEBUG
     colors = color_gen(len(names))
     print(colors)
     p = figure(plot_height=250,
@@ -467,6 +501,12 @@ def overall_standing(gameid):
                             WHERE (gameid='%s')
                             GROUP BY groupid, gametype"""%(gameid), con=con)
 
+
+    if df.count==0:
+        # No groups have send their results. Display empty figure.
+        return figure(plot_height=250,
+               toolbar_location=None, title="No results registered")
+
     games = list(df['gametype'].unique())
     colors = color_gen(len(games))
 
@@ -494,7 +534,7 @@ def color_gen(ncolors):
     """ generates list of colors for bokeh graph"""
     #yield from itertools.cycle(Category10[10])
     if ncolors < 3:
-        colorlist = ['red','blue']
+        colorlist = Category10[3][0:ncolors]
     elif ncolors <= 10:
         colorlist = Category10[ncolors]
     elif ncolors <= 20:
@@ -529,6 +569,10 @@ def gen_results_table(timestamp, gameid, gametype, groupid, price_hist, init_inv
     return df
 
 
+def get_active_games():
+    with  sql.connect(DATABASE) as con:
+        df = pd.read_sql("""SELECT * FROM games WHERE gamestatus='open'""", con=con)
+    return list(df['gameid'])
 
 
 

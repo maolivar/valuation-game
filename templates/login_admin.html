@@ -1,0 +1,36 @@
+{% extends 'head_template.html' %}
+
+{% block body %}
+    <div class="container">
+        <h1>Pricing game - Admin Login </h1>
+
+
+    </div>
+
+    <div class="container">
+        Create new game:
+        <form action= {{ url_for('results_dashboard') }} method="post">
+             <input type="hidden" name="gameid" value="{{ newgameid }}">
+            <input type="hidden" name="isnew" value=1>
+            <input type="hidden" name="gametype" value="base">
+             <input type="submit" value="New Game">
+        </form>
+
+        <p>
+
+        Continue existing game:
+        <form action= {{ url_for('results_dashboard') }} method="post">
+             <input type="hidden" name="gametype" value="base">
+            <input type="hidden" name="isnew" value=0>
+            <select id="gameid" name="gameid">
+            {% for g in gamelist %}
+                    <option value="{{ g }}">{{ g }}</option>
+            {% endfor %}
+            </select>
+            <input type="submit" value="Continue Game">
+         </form>
+
+    </div>
+
+
+{% endblock %}
