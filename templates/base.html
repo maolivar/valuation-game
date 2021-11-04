@@ -9,10 +9,12 @@
 {% block body %}
     <div class="container">
         <h2> Group: {{ groupname }}</h2>
+        <h3> Scenario: {{ typename }}</h3>
         {% block content %}
                 {{ plot_div|indent(4)|safe }}
 
-            <p> <strong> {{ sales }} customers </strong> (out of {{ ncust }} that showed up) chose to purchase.</p>
+            <p> Week {{ stage|int - 1 }}: <strong> {{ sales }} customers </strong> (out of {{ ncust }} that showed up) purchased.</p>
+        <p> Total revenue up to week {{ stage|int - 1 }} = {{ revenue }}</p>
         {% endblock %}
     </div>
 
@@ -21,13 +23,16 @@
         <h2>Week {{ stage }} </h2>
         {% if has_inv %}
             Your current inventory is {{ inv }}. <br>
+            {% if inv|int == 0 %}
+                Since you ran out of inventory, you will not be able to sell during the remaining weeks. <br>
+            {% endif %}
         {% endif %}
 
         {% if not valuetype == 'full' %}
             <p> This week, incoming customers have a {{ valuetype }} valuation.</p>
         {% endif %}
 
-        Enter the price for this week.
+        <p>Enter the price for this week.</p>
         <form action="" method="post">
             <input type="hidden" value="{{ gameid }}" name="gameid" />
             <input type="hidden" value="{{ groupname }}" name="groupname" />
@@ -39,6 +44,7 @@
              Price: <input type="number" name="price" required>
              <input type="submit" value="Submit price">
          </form>
+
     {% endblock %}
 
 {% endblock %}

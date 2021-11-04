@@ -47,6 +47,9 @@ INITINV = 40                # initial inventory for scenarios with inventory
 GAMEVALUES = {'base':['full']*NPERIODS,
               'inv':['full']*NPERIODS,
               'disc':['low']*(NPERIODS-NPERIODS_HIGH)+['high']*NPERIODS_HIGH}
+GAMENAMES = {'base': 'No inventory',
+             'inv': 'Inventory',
+             'disc': 'Inventory+Price discrim.'}
 HIGHVALUE_CUT = 0.2
 NUMCUST_LOW = 10
 NUMCUST_HIGH = 20
@@ -177,11 +180,18 @@ def index(gametype):
     # render template
     script, div = components(bfig)
 
+    if price_hist:
+        # if there is price history, calculate revenues up to current stage
+        price_arr = csvstr_to_numarr(price_hist)
+        (sales_arr, ncust_arr) = get_sales_hist(price_arr, init_inv, valuations)
+        totrevenue = np.dot(price_arr, sales_arr)
+
     if stagenum == 1:
         return render_template('welcome.html', gameid=gameid, groupname= groupname,
                                has_inv = HASINV[gametype],
                                valuetype = GAMEVALUES[gametype][stagenum-1],
                                value_list = GAMEVALUES[gametype],
+                               typename=GAMENAMES[gametype],
                                stage = stage, inv = inventory,
                                nperiods = str(NPERIODS),
                                plot_script=script,
@@ -193,6 +203,7 @@ def index(gametype):
         return render_template('base.html', gameid=gameid, groupname= groupname,
                                has_inv = HASINV[gametype],
                                valuetype=GAMEVALUES[gametype][stagenum - 1],
+                               typename = GAMENAMES[gametype],
                                sales = int(sales), ncust = ncust,
                                stage = stage,
                                inv = inventory, init_inv = init_inv,
@@ -200,15 +211,15 @@ def index(gametype):
                                plot_script=script,
                                plot_div=div,
                                js_resources=js_resources,
-                               css_resources=css_resources
+                               css_resources=css_resources,
+                               revenue=totrevenue
                                )
     else:
-        price_arr = csvstr_to_numarr(price_hist)
-        (sales_arr,ncust_arr)=get_sales_hist(price_arr,init_inv,valuations)
-        totrevenue= np.dot(price_arr,sales_arr)
         return render_template('gameover.html', gameid= gameid, groupname= groupname,
                                has_inv = HASINV[gametype], gametype= gametype,
+                               typename=GAMENAMES[gametype],
                                sales = int(sales), ncust = ncust,
+                               stage = stage,
                                inv = inventory,
                                price_hist = price_hist,
                                plot_script=script,
@@ -502,7 +513,7 @@ def overall_standing(gameid):
                             GROUP BY groupid, gametype"""%(gameid), con=con)
 
 
-    if df.count==0:
+    if df['revenue'].count()==0:
         # No groups have send their results. Display empty figure.
         return figure(plot_height=250,
                toolbar_location=None, title="No results registered")
@@ -524,7 +535,10 @@ def overall_standing(gameid):
 
     p = figure(plot_height=250, y_range = names,
                toolbar_location=None, title="Overall standing")
-    p.hbar_stack(games, y='groupid', height=0.8, source=source, color=colors,  legend_label=games)
+    v = p.hbar_stack(games, y='groupid', height=0.8, source=source, color=colors)
+
+    legend = Legend(items=[(GAMENAMES[games[x]], [v[x]]) for x in range(len(games))])
+    p.add_layout(legend,'right')
 
     return p
 
