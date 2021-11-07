@@ -548,12 +548,16 @@ def overall_standing(gameid):
     # Pivot table to create stacked chart
     df2 = df.pivot(index='groupid', columns='gametype', values='revenue').reset_index()
     df2 = df2.fillna(0)
+    df2['revenue']= df2[games].sum(axis=1)
 
     source = ColumnDataSource(df2)
 
     p = figure(plot_height=250, y_range = names,
                toolbar_location=None, title="Overall standing")
     v = p.hbar_stack(games, y='groupid', height=0.8, source=source, color=colors)
+    # add hover
+    hover = HoverTool(tooltips=[('Group', '@groupid'),('Total revenue','@revenue')])
+    p.add_tools(hover)
 
     legend = Legend(items=[(GAMENAMES[games[x]], [v[x]]) for x in range(len(games))])
     p.add_layout(legend,'right')

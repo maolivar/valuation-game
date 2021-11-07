@@ -6,10 +6,23 @@
 
 The alpha version of the game is currently deployed in [Heroku](valuation-game.herokuapp.com).
 
-Basic instructions to play the game:
+### Basic instructions to play the game:
 
-- Enter the link: https://valuation-game.herokuapp.com
-- The full game consists on three simulations, each simulation lasts for 5 periods, where each period corresponds to a week.
+Create or enter existing game:
+
+- Go to the admin login page: https://valuation-game.herokuapp.com/adminLogin
+- Choose to create a new game or enter existing game. When a new game is created, a game password is created automatically.
+- The administrator dashboard will be displayed (with empty charts for a newly created game).
+
+Register players:
+
+- Player login: https://valuation-game.herokuapp.com/login
+- Enter game password provided by admin. Create a group name (choose a short name).
+- Start the game in the first simulation.
+
+### Game description
+
+The full game consists on three simulations, each simulation lasts for 5 periods, where each period corresponds to a week.
 
 *Simulation 1: base scenario:*
 - A random number of customers (between 10-20) arrive each week. Each customer has a valuation for the product, which is randomly picked from a distribution of 
@@ -30,16 +43,29 @@ valuations declared by real people that where asked to provide the willingness t
 - In the current setup, low valuations corresponds to the bottom 80% of the valuation distribution, and high valuation from the top 20%.
 - Rest of the game is identifical.
 
-To view the stored results so far, the instructor can use the path extension `/get_results` on the URL of the game.
+## Viewing results
+
+At the end of each round, players have to submit their results.
+
+The results of all groups can be viewed in the admin Dashboard. The admin can change the simulation to be viewed:
+- `base` = Simulation 1
+- `inv` = Simulation 2
+- `disc` = Simulation 3
+
+If  simulation has no results, an empty plot is shown.
+
+To view the stored results so far in the database, the instructor can use the path extension `/get_results` on the URL of the game.
 
 Future improvements:
-- Add an administration panel to view results and change game parameters.
-- Implement a game password and player registration panel.
-- Improve CSS design.
-- Other suggestions are welcome (but please keep it simple).
+- Add login for administrators
+- Dashboard to manage existing games
+- Other suggestions are welcomed.
 
 
 ## Development notes
 
-`valuation-game` is developed in Python using Flask framework to implement the web-app. It uses a local SQLite database to store game results. It is currently under development, so any suggestions for improvement are very much welcomed!
+`valuation-game` is developed in Python using Flask framework to implement the web-app. 
+It uses a local SQLite database to store game results. 
+All the plots are generated using [Bokeh](https://docs.bokeh.org/en/latest/index.html) framework.
+It is currently under development, so any suggestions for improvement are very much welcomed!
 
