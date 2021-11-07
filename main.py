@@ -23,7 +23,7 @@ from bokeh.plotting import figure
 from bokeh.resources import INLINE
 from bokeh.models import ColumnDataSource, Range1d, Legend, HoverTool
 from bokeh.core.properties import value
-from bokeh.layouts import column
+from bokeh.layouts import column, row
 from bokeh.palettes import Category10, Category20, inferno
 
 
@@ -302,7 +302,7 @@ def results_dashboard():
     js_resources = INLINE.render_js()
     css_resources = INLINE.render_css()
     # render template
-    fig = column(fig1, fig2)
+    fig = column(fig1, fig2, sizing_mode="scale_height")
     script, div = components(fig)
 
     html = render_template('results_dashboard.html',
@@ -442,8 +442,14 @@ def draw_bokeh_graph(price_hist, init_inv, valuations):
     # Graph 1: price history
     g = figure( plot_height=250, x_range= weeks,
                 toolbar_location=None, title="Price history")
-    g.line(x,price_arr, line_width=2)
-    g.circle(x,price_arr, fill_color='white', size=8)
+    price_line = g.line(x,price_arr, line_width=2)
+    price_circ = g.circle(x,price_arr, fill_color='white', size=8)
+
+    # add hover
+    hover1 = HoverTool(tooltips=[('Price', '@y')],
+                      renderers=[price_circ])
+    g.add_tools(hover1)
+
     g.xaxis.axis_label = "Week"
     g.yaxis.axis_label = "Price"
     g.axis.minor_tick_line_color = None
@@ -457,7 +463,9 @@ def draw_bokeh_graph(price_hist, init_inv, valuations):
     colstack = ['sales','no purchase']
     data = {'week':x,
             'sales': sales_arr,
-            'no purchase':lostsales_arr}
+            'no purchase':lostsales_arr,
+            'customers': ncust_arr,
+            'fraction':sales_arr/ncust_arr}
 
     colors = ["#718dbf", "#e84d60"]
 
@@ -467,6 +475,9 @@ def draw_bokeh_graph(price_hist, init_inv, valuations):
                 toolbar_location=None, title="Number of customers and sales per week")
 
     p.vbar_stack(colstack, x='week', width=0.9, color=colors, source=source, legend=[value(x) for x in colstack])
+    # add hover
+    hover2 = HoverTool(tooltips=[('#customers', '@customers'),('Frac.Purchase','@fraction')])
+    p.add_tools(hover2)
     p.x_range.range_padding = 0.1
     p.xgrid.grid_line_color = None
     p.y_range.start = 0
@@ -486,14 +497,21 @@ def draw_results_allgroups(gameid, gametype):
     names = df['groupid'].unique()
     colors = color_gen(len(names))
     print(colors)
-    p = figure(plot_height=250,
+    p = figure(aspect_ratio=2.0, plot_height=600,
                toolbar_location=None, title="Price history for all groups")
+
+
     p_dict = dict()
     p_circ_dict = dict()
     for n,c in zip(names,colors):
         source = ColumnDataSource(data=df.loc[df['groupid']==n])
-        p_dict[n] = p.line(x='period',y='price', source=source, color=c )
+        p_dict[n] = p.line(x='period',y='price', source=source, color=c, hover_line_width=3 )
         p_circ_dict[n] = p.circle(x='period', y='price', fill_color=c, size=5, source=source)
+
+    # add hover
+    hover = HoverTool(tooltips=[('Group','@groupid'),('Price','@price')],
+                      renderers= list(p_dict.values()) )
+    p.add_tools(hover)
 
     legend = Legend(items=[(x, [p_circ_dict[x]]) for x in p_circ_dict])
     p.add_layout(legend,'right')
