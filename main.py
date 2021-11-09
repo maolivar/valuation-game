@@ -513,8 +513,9 @@ def draw_results_allgroups(gameid, gametype):
                       renderers= list(p_dict.values()) )
     p.add_tools(hover)
 
-    legend = Legend(items=[(x, [p_circ_dict[x]]) for x in p_circ_dict])
+    legend = Legend(items=[(x, [p_dict[x]]) for x in p_dict])
     p.add_layout(legend,'right')
+    p.legend.click_policy = "hide"
     p.xaxis.axis_label = 'Week'
     p.yaxis.axis_label = 'Price'
 
