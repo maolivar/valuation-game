@@ -35,6 +35,8 @@
 
              <input type="submit" value="Refresh">
             <input type="reset">
+          <button type="submit" formmethod="post" formaction="{{ url_for('download_table') }}">Download CSV</button>
+
     </form>
 
 <p>    {{ plot_div|indent(4)|safe }}

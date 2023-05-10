@@ -8,7 +8,7 @@
 
 {% block body %}
     <div class="container">
-        <h2> Group: {{ groupname }}</h2>
+        <h2> Game: {{ gameid }} | Group: {{ groupname }}</h2>
         <h3> Scenario: {{ typename }}</h3>
         {% block content %}
                 {{ plot_div|indent(4)|safe }}

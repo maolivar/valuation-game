@@ -4,6 +4,7 @@
 # By Marcelo Olivares
 # First version: 10/04/2021
 
+from io import StringIO
 import random
 import base64
 import numpy as np
@@ -11,20 +12,23 @@ import pandas as pd
 import sqlite3 as sql
 import datetime
 import itertools
+import csv
 
 #from io import BytesIO
 
 from flask import Flask, render_template
-from flask import request
+from flask import request, make_response
 from matplotlib.figure import Figure
 
 from bokeh.embed import components
 from bokeh.plotting import figure
 from bokeh.resources import INLINE
-from bokeh.models import ColumnDataSource, Range1d, Legend, HoverTool
+from bokeh.models import ColumnDataSource, Range1d, Legend, HoverTool,CustomJS, CheckboxGroup
 from bokeh.core.properties import value
 from bokeh.layouts import column, row
 from bokeh.palettes import Category10, Category20, inferno
+
+
 
 
 
@@ -297,12 +301,17 @@ def results_dashboard():
     gamelist = get_active_games()
 
     fig1 = draw_results_allgroups(gameid= gameid, gametype= gametype)
+    fig1.sizing_mode='scale_width'
     fig2 = overall_standing(gameid= gameid)
+    fig2.sizing_mode='scale_width'
+
     # grab the static resources
     js_resources = INLINE.render_js()
     css_resources = INLINE.render_css()
     # render template
-    fig = column(fig1, fig2, sizing_mode="scale_height")
+    # scale to container size
+    #fig = column(fig1, fig2, sizing_mode="scale_height")
+    fig = column(fig1, fig2,sizing_mode='scale_width')
     script, div = components(fig)
 
     html = render_template('results_dashboard.html',
@@ -363,7 +372,43 @@ def bokeh_test():
                            )
     return (html)
 
+@app.route('/download_results', methods=['POST'])
+#@app.route('/download_csv')
+def download_table():
+    # Get input values from form
+    filter_value = request.form['gameid']
+    #filter_value = '12345'
 
+    # Connect to database
+    conn = sql.connect(DATABASE)
+    cursor = conn.cursor()
+
+    # Construct SQL query with filter
+    query = f"SELECT * FROM results WHERE gameid='{filter_value}'"
+
+    # Retrieve data from database
+    cursor.execute(query)
+    rows = cursor.fetchall()
+    cols = [desc[0] for desc in cursor.description]
+
+    output = StringIO()
+    writer = csv.writer(output)
+
+    writer.writerow(cols)
+    # write the query results to the CSV
+    for row in rows:
+        writer.writerow(row)
+        print(row)
+
+    response = make_response(output.getvalue())
+    response.headers['Content-Disposition'] = f'attachment; filename=results_{filter_value}.csv'
+    response.headers['Content-Type'] = 'text/csv'
+
+    # Close database connection
+    cursor.close()
+    conn.close()
+
+    return response
 
 
 # -------------- AUXILIARY FUNCTIONS ------------------------
@@ -440,7 +485,7 @@ def draw_bokeh_graph(price_hist, init_inv, valuations):
     weeks = list(map(str,range(1,NPERIODS+1)))
 
     # Graph 1: price history
-    g = figure( plot_height=250, x_range= weeks,
+    g = figure( height=250, x_range= weeks,
                 toolbar_location=None, title="Price history")
     price_line = g.line(x,price_arr, line_width=2)
     price_circ = g.circle(x,price_arr, fill_color='white', size=8)
@@ -471,10 +516,10 @@ def draw_bokeh_graph(price_hist, init_inv, valuations):
 
     source = ColumnDataSource(data=data)
 
-    p = figure( plot_height=250, x_range= weeks,
+    p = figure( height=250, x_range= weeks,
                 toolbar_location=None, title="Number of customers and sales per week")
 
-    p.vbar_stack(colstack, x='week', width=0.9, color=colors, source=source, legend=[value(x) for x in colstack])
+    p.vbar_stack(colstack, x='week', width=0.9, color=colors, source=source, legend_label=colstack)
     # add hover
     hover2 = HoverTool(tooltips=[('#customers', '@customers'),('Frac.Purchase','@fraction')])
     p.add_tools(hover2)
@@ -497,9 +542,9 @@ def draw_results_allgroups(gameid, gametype):
     names = df['groupid'].unique()
     colors = color_gen(len(names))
     print(colors)
-    p = figure(aspect_ratio=2.0, plot_height=600,
-               toolbar_location=None, title="Price history for all groups")
-
+    p = figure(aspect_ratio=2.0, sizing_mode="scale_width",
+               toolbar_location='above', title="Price history for all groups",
+               tools="pan,wheel_zoom,box_zoom,reset")
 
     p_dict = dict()
     p_circ_dict = dict()
@@ -513,11 +558,22 @@ def draw_results_allgroups(gameid, gametype):
                       renderers= list(p_dict.values()) )
     p.add_tools(hover)
 
-    legend = Legend(items=[(x, [p_dict[x]]) for x in p_dict])
+# Create legend
+    # create the legend items
+    legend_items = [(x, [p_dict[x]]) for x in p_dict]
+    # create the legend
+    legend = Legend(items=legend_items, label_text_font_size='16pt')
+
+    #legend = Legend(items=[(x, [p_dict[x]]) for x in p_dict],
+    #                label_text_font_size='16pt')
     p.add_layout(legend,'right')
     p.legend.click_policy = "hide"
     p.xaxis.axis_label = 'Week'
+    p.xaxis.axis_label_text_font_size = '18pt'
+    p.xaxis.major_label_text_font_size = '16pt'
     p.yaxis.axis_label = 'Price'
+    p.yaxis.axis_label_text_font_size = '18pt'
+    p.yaxis.major_label_text_font_size = '14pt'
 
     # TO DO
     # - Add sales for this round, bar graph
@@ -534,7 +590,7 @@ def overall_standing(gameid):
 
     if df['revenue'].count()==0:
         # No groups have send their results. Display empty figure.
-        return figure(plot_height=250,
+        return figure(height=250,
                toolbar_location=None, title="No results registered")
 
     games = list(df['gametype'].unique())
@@ -553,15 +609,22 @@ def overall_standing(gameid):
 
     source = ColumnDataSource(df2)
 
-    p = figure(plot_height=250, y_range = names,
-               toolbar_location=None, title="Overall standing")
+    p = figure(height=250, y_range = names,
+               toolbar_location='above', title="Overall standing",
+               tools="pan,wheel_zoom,box_zoom,reset")
     v = p.hbar_stack(games, y='groupid', height=0.8, source=source, color=colors)
+
     # add hover
-    hover = HoverTool(tooltips=[('Group', '@groupid'),('Total revenue','@revenue')])
+    tooltips = [(game, f'@{game}{{0.0}}') for game in games]
+    hover = HoverTool(tooltips=tooltips)
+    #hover = HoverTool(tooltips=[('Group', '@groupid'),('Total revenue','@revenue')])
     p.add_tools(hover)
 
-    legend = Legend(items=[(GAMENAMES[games[x]], [v[x]]) for x in range(len(games))])
+    legend = Legend(items=[(GAMENAMES[games[x]], [v[x]]) for x in range(len(games))],
+                    label_text_font_size='16pt')
     p.add_layout(legend,'right')
+
+    p.yaxis.major_label_text_font_size = '16pt'
 
     return p
 
@@ -619,14 +682,14 @@ def get_active_games():
 
 
 # Following line is to run locally
-#if __name__ == "__main__":
-#    app.run(host="127.0.0.1", port=8080, debug=True)
-
 if __name__ == "__main__":
+    app.run(host="127.0.0.1", port=8080, debug=True)
+
+#if __name__ == "__main__":
     # Use the following when deploying with Procfile using gunicorn
     # See: https: // dev.to / lordofdexterity / deploying - flask - app - on - heroku - using - github - 50
     # Procfile >> web: gunicorn --bind 0.0.0.0:$PORT main:app (This is the Procfile)
-    app.run(debug=True) # final deployment set debug=False
+#    app.run(debug=True) # final deployment set debug=False
 
     # The following can be used when Procfile uses python directly:
     # (see https://www.youtube.com/watch?v=OUXzdPnh6wI )
