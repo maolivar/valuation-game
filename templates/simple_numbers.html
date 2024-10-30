@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Simple Numbers and Graph</title>
+    {{ css_resources|safe }}
+</head>
+<body>
+    <h1>Simple Numbers and Graph</h1>
+    
+    <!-- Input for Adding Price -->
+    <label for="price">Price:</label>
+    <input type="number" id="price" name="price">
+    <!-- Button with type="button" to prevent form submission -->
+    <button type="button" onclick="submitPrice(event)">Submit Price</button>
+    
+    <h2>Current Week: <span id="currentWeek">{{ price_list|length + 1 }}</span></h2>
+    <ul id="priceList">
+        {% for price in price_list %}
+            <li>Price: {{ price }}</li>
+        {% endfor %}
+    </ul>
+
+    <!-- Bokeh Plot Div -->
+    <div>
+        {{ plot_script|safe }}
+        {{ plot_div|safe }}
+    </div>
+
+    {{ js_resources|safe }}
+
+    <!-- JavaScript for Dynamic Graph Update -->
+    <script>
+        let priceHistory = {{ price_list | tojson }};
+        let currentWeek = priceHistory.length + 1;
+
+function submitPrice(event) {
+    event.preventDefault();  // Prevent form submission
+
+    const priceInput = document.getElementById('price');
+    const price = parseFloat(priceInput.value);
+
+    if (isNaN(price)) return;  // Skip if input is invalid or empty
+
+    // Update the price history
+    priceHistory.push(price);
+
+    // Update displayed price list
+    const priceList = document.getElementById('priceList');
+    const listItem = document.createElement('li');
+    listItem.textContent = `Week ${currentWeek}: ${price}`;
+    priceList.appendChild(listItem);
+
+    // Update the current week display
+    currentWeek += 1;
+    document.getElementById('currentWeek').textContent = currentWeek;
+
+    // Access Bokeh plot's data source using unique source name
+    let source;
+    try {
+        source = Bokeh.documents[0].get_model_by_name('price_data_source');
+        if (source && source.data) {
+            // Ensure both x and y arrays are updated together and are of the same length
+            const newXValue = currentWeek.toString();
+            const newYValue = price;
+
+            // Check if lengths are consistent, correct if necessary
+            if (source.data['x'].length !== source.data['y'].length) {
+                console.warn("Correcting inconsistent lengths in x and y arrays");
+                const minLength = Math.min(source.data['x'].length, source.data['y'].length);
+                source.data['x'] = source.data['x'].slice(0, minLength);
+                source.data['y'] = source.data['y'].slice(0, minLength);
+            }
+
+            // Add new values to both arrays
+            source.data['x'].push(newXValue);
+            source.data['y'].push(newYValue);
+
+            // Force re-render by emitting change and delaying refresh
+            source.change.emit();  // First emit to trigger render
+
+            // Delay for additional force-render (optional but can help)
+            setTimeout(() => {
+                source.change.emit();
+            }, 50);  // Small delay ensures Bokeh re-renders
+
+            console.log("Updated Data Source:", source.data);  // For debugging
+        } else {
+            console.error("Data source not found.");
+        }
+    } catch (e) {
+        console.error("Error accessing Bokeh data source:", e);
+    }
+
+    // Clear the input for the next entry
+    priceInput.value = '';
+}
+    </script>
+</body>
+</html>

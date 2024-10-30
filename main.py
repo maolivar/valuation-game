@@ -438,9 +438,10 @@ def get_sales_hist(price_list,init_inv,valuations):
     ncust_arr = np.array(ncust_list)
     return sales_arr, ncust_arr
 
-def csvstr_to_numarr(csv):
-    tolist= [int(x) for x in csv.split(',') if x.strip().isdigit()]
-    return np.array(tolist)
+def csvstr_to_numarr(csv_str):
+    if csv_str:
+        return list(map(float, csv_str.split(',')))
+    return []
 
 def draw_graph(price_hist, init_inv,valuations):
     global NPERIODS
@@ -474,6 +475,13 @@ def draw_graph(price_hist, init_inv,valuations):
     fig.tight_layout()
 
     return fig
+
+from bokeh.models import ColumnDataSource, CustomJS, HoverTool
+from bokeh.plotting import figure
+from bokeh.embed import components
+from bokeh.resources import INLINE
+
+
 
 def draw_bokeh_graph(price_hist, init_inv, valuations):
 
@@ -535,6 +543,119 @@ def draw_bokeh_graph(price_hist, init_inv, valuations):
     p.yaxis.axis_label = "Demand (units)"
 
     return column(g,p)
+
+## PRICE GRAPH ----------------------------
+from bokeh.models import ColumnDataSource, HoverTool
+from bokeh.plotting import figure
+from bokeh.embed import components
+from bokeh.resources import INLINE
+
+def draw_simple_graph(price_hist):
+    NPERIODS = 5  # Max number of weeks
+    weeks = list(map(str, range(1, NPERIODS + 1)))
+    price_list = csvstr_to_numarr(price_hist)
+    price_arr = np.array(price_list)
+    x = list(map(str, range(1, len(price_list) + 1)))
+
+    # Graph: price history
+    source = ColumnDataSource(data=dict(x=x, y=price_arr))
+
+    g = figure(height=250, x_range=weeks, toolbar_location=None, title="Price history", name="price_plot")
+    g.line('x', 'y', source=source, line_width=2)
+    g.circle('x', 'y', source=source, fill_color='white', size=8)
+
+    # add hover
+    hover = HoverTool(tooltips=[('Price', '@y')], renderers=[g.circle('x', 'y', source=source)])
+    g.add_tools(hover)
+
+    g.xaxis.axis_label = "Week"
+    g.yaxis.axis_label = "Price"
+    g.axis.minor_tick_line_color = None
+    g.outline_line_color = None
+    g.xgrid.grid_line_color = None
+
+    script, div = components(g, INLINE)
+    return script, div
+#----------------------------
+
+def draw_simple_graph(price_hist):
+    NPERIODS = 5  # Max number of weeks
+    weeks = list(map(str, range(1, NPERIODS + 1)))
+    price_list = csvstr_to_numarr(price_hist)
+    price_arr = np.array(price_list)
+    x = list(map(str, range(1, len(price_list) + 1)))
+
+    # Graph: price history
+    source = ColumnDataSource(data=dict(x=x, y=price_arr))
+
+    g = figure(height=250, x_range=weeks, toolbar_location=None, title="Price history", name="price_plot")
+    g.line('x', 'y', source=source, line_width=2)
+    g.circle('x', 'y', source=source, fill_color='white', size=8)
+
+    # add hover
+    hover = HoverTool(tooltips=[('Price', '@y')], renderers=[g.circle('x', 'y', source=source)])
+    g.add_tools(hover)
+
+    g.xaxis.axis_label = "Week"
+    g.yaxis.axis_label = "Price"
+    g.axis.minor_tick_line_color = None
+    g.outline_line_color = None
+    g.xgrid.grid_line_color = None
+
+    script, div = components(g, INLINE)
+    return script, div
+
+from bokeh.resources import INLINE
+
+from flask import Flask, render_template
+from bokeh.plotting import figure
+from bokeh.embed import components
+from bokeh.models import ColumnDataSource
+from bokeh.resources import INLINE
+
+app = Flask(__name__)
+
+@app.route('/simple_numbers', methods=['GET', 'POST'])
+def simple_numbers():
+    # Initialize price_hist and convert it to price_list if available
+    price_hist = ""  # Start as an empty string or fetch dynamically
+    price_list = list(map(float, price_hist.split(','))) if price_hist else []
+
+    # Create x_values to match the length of price_list or as a placeholder if empty
+    x_values = list(map(str, range(1, len(price_list) + 1))) if price_list else []
+
+    # Ensure both x and y have the same length in ColumnDataSource
+    source = ColumnDataSource(data=dict(x=x_values, y=price_list), name="price_data_source")
+
+    # Set up the plot without specifying a static x_range
+    p = figure(
+        title="Price History", 
+        height=250, 
+        toolbar_location=None, 
+        x_axis_label="Week",
+        y_axis_label="Price",
+        name="price_plot"
+    )
+
+    # Create the line and circle renderers for the plot
+    p.line('x', 'y', source=source, line_width=2)
+    p.circle('x', 'y', source=source, fill_color='white', size=8)
+
+    # Embed the plot in the HTML template
+    plot_script, plot_div = components(p)
+    js_resources = INLINE.render_js()
+    css_resources = INLINE.render_css()
+
+    return render_template(
+        'simple_numbers.html',
+        plot_script=plot_script,
+        plot_div=plot_div,
+        js_resources=js_resources,
+        css_resources=css_resources,
+        price_list=price_list
+    )
+
+
 
 def draw_results_allgroups(gameid, gametype):
     with  sql.connect(DATABASE) as con:
@@ -678,12 +799,14 @@ def get_active_games():
 
 
 
-
+# for testing
+if __name__ == '__main__':
+    app.run(debug=True, port=5000)
 
 
 # Following line is to run locally
-if __name__ == "__main__":
-    app.run(host="127.0.0.1", port=8080, debug=True)
+#if __name__ == "__main__":
+#    app.run(host="127.0.0.1", port=8080, debug=True)
 
 #if __name__ == "__main__":
     # Use the following when deploying with Procfile using gunicorn
