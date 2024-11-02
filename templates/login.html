@@ -13,11 +13,12 @@
     {% block form %}
 
         Login to the game
-        <form action= {{ url_for('index', gametype="base") }} method="post">
-             Game password: <input type="number" name="gameid" required>
-             Group name: <input  name="groupname" required>
-             <input type="submit" value="enter game">
-         </form>
+        <form action="{{ url_for('maingame') }}" method="post">
+            Game password: <input type="number" name="gameid" required>
+            Group name: <input name="groupname" required>
+            <input type="hidden" name="gametype" value="base" />  <!-- Default to base -->
+            <input type="submit" value="enter game">
+        </form>
     {% endblock %}
 
 {% endblock %}

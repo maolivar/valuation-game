@@ -108,3 +108,48 @@ input[type=text]:focus, input[type=number]:focus {
     padding: 8px 12px;
     text-decoration: none;
 }
+
+.button {
+  background-color: #008CBA;
+  border: none;
+  color: white;
+  padding: 16px 32px;
+  text-decoration: none;
+  margin: 4px 2px;
+  cursor: pointer;
+}
+
+/* Style for disabled buttons */
+button:disabled, input[type="button"]:disabled {
+  background-color: #ccc; /* Light gray background */
+  color: #666; /* Dark gray text */
+  cursor: not-allowed; /* Not-allowed cursor */
+  border: none;
+}
+
+/* Style for disabled input fields */
+input[type="number"]:disabled {
+  background-color: #f0f0f0; /* Light gray background */
+  color: #666; /* Dark gray text */
+  border: 1px solid #ddd;
+}
+
+/* Game header styles */
+.container {
+  max-width: 100%;            /* Full width by default */
+  margin: 0 auto;             /* Center the container */
+  padding: 10px;              /* Add padding for readability */
+  display: flex;              /* Use flexbox to adjust to screen size */
+  flex-direction: column;     /* Stack items vertically */
+  align-items: center;        /* Center-align items inside the container */
+}
+
+.game-header {
+  font-size: 1.2em;           /* Adjust font size as needed */
+  line-height: 1.5;           /* Space between lines */
+  text-align: justify;        /* Justify text for even spacing */
+  max-width: 90%;             /* Limit width on large screens */
+  margin: 10px 0;             /* Spacing around the header */
+}
+
+
