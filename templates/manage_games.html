@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Manage Games</title>
+</head>
+<body>
+    <h1>Manage Games</h1>
+
+    <!-- Form to select a game ID and filter/delete -->
+    <form method="POST" action="{{ url_for('manage_games') }}">
+        <label for="gameid">Select Game ID:</label>
+        <select name="gameid" id="gameid" required>
+            {% for g in active_games %}
+                <option value="{{ g }}" {% if g == selected_gameid %}selected{% endif %}>{{ g }}</option>
+            {% endfor %}
+        </select>
+        <button type="submit" name="filter">Filter</button>
+        <button type="submit" name="delete" onclick="return confirm('Are you sure you want to delete all entries for this game?');">Delete</button>
+    </form>
+    <div style="margin-top: 20px;">
+        <a href="{{ url_for('admin_login') }}">Go to Admin Login</a>
+    </div>
+
+    <!-- Display Results for Selected Game -->
+    {% if game_results and selected_gameid %}
+        <h2>Results for Game ID: {{ selected_gameid }}</h2>
+        <table border="1">
+            <tr>
+                <th>Timestamp</th>
+                <th>Game ID</th>
+                <th>Game Type</th>
+                <th>Group ID</th>
+                <th>Period</th>
+                <th>Price</th>
+                <th>Num. Customers</th>
+                <th>Sales</th>
+                <th>End Inventory</th>
+            </tr>
+            {% for row in game_results %}
+                <tr>
+                    <td>{{ row.timestamp }}</td>
+                    <td>{{ row.gameid }}</td>
+                    <td>{{ row.gametype }}</td>
+                    <td>{{ row.groupid }}</td>
+                    <td>{{ row.period }}</td>
+                    <td>{{ row.price }}</td>
+                    <td>{{ row.ncust }}</td>
+                    <td>{{ row.sales }}</td>
+                    <td>{{ row.end_inv }}</td>
+                </tr>
+            {% endfor %}
+        </table>
+    {% elif selected_gameid %}
+        <p>No results found for Game ID: {{ selected_gameid }}</p>
+    {% else %}
+        <p>Please select a game to view results.</p>
+    {% endif %}
+</body>
+</html>

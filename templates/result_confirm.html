@@ -1,7 +1,7 @@
 {% extends "head_template.html" %}
 
 {% block body %}
-    <h2> Results for Group {{ groupname }} submitted succesfully. </h2>
+    <h2> Results for Group {{ groupname }} submitted successfully. </h2>
 
     {% for table in tables %}
                 {{ table|safe }}
@@ -10,9 +10,10 @@
     {% if nextgame %}
         <h4> Wait for instructions to start the next simulation. </h4>
 
-       <form action={{ url_for('index', gametype= nextgame) }} method="post">
+        <form action="{{ url_for('maingame') }}" method="post">
             <input type="hidden" value="{{ gameid }}" name="gameid" />
             <input type="hidden" value="{{ groupname }}" name="groupname" />
+            <input type="hidden" value="{{ nextgame }}" name="gametype" />
             <input type="submit" value="Start next simulation">
          </form>
 

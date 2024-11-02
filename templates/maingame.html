@@ -1,0 +1,168 @@
+{% extends 'head_template.html' %}
+
+{% block js_head %}
+    {{ css_resources|safe }}
+    {{ js_resources|safe }}
+    {{ plot_script|safe }}
+{% endblock %}
+
+{% block body %}
+    <div class="container">
+        <h1>Game: {{ gameid }} | Group: {{ groupname }}</h1>
+
+        <p>{{ game_header }}</p>  <!-- Display game header -->
+
+        <!-- Display week indicator and valuation message -->
+        <h2 id="weekIndicator">Current Week: 1</h2>
+        <p id="valuationMessage"></p> <!-- Placeholder for valuation type message -->
+        
+
+        {% if hasinv == 1 %}
+            <p><strong>Remaining Inventory:</strong> <span id="remainingInventory">{{ init_inv }}</span></p>
+        {% endif %}
+
+        <!-- Price input section -->
+        <label for="price">Price:</label>
+        <input type="number" id="price" name="price">
+        <button type="button" id="submitPriceButton" onclick="submitPrice(event)" class="button" style="margin-right: 10px;">Submit Price</button>
+
+        <!-- Hidden form for submitting results -->
+        <form id="submitResultsForm" action="{{ url_for('send_results', gametype=gametype) }}" method="post" style="display: none;">
+            <input type="hidden" id="price_hist_data" name="price_hist" />
+            <input type="hidden" value="{{ gameid }}" name="gameid" />
+            <input type="hidden" value="{{ groupname }}" name="groupname" />
+            <input type="hidden" id="ncust_data" name="ncust" />
+            <input type="hidden" id="sales_data" name="sales" />
+            <input type="hidden" id="end_inv_data" name="end_inv" />
+            <input type="submit" value="Submit Results" class="button" onclick="populateResults()" />
+        </form>
+
+        <ul id="priceList"></ul>
+        <div>
+            {{ plot_div|safe }}
+        </div>
+    </div>
+
+    <script>
+        const valuations = {{ valuations | tojson }};
+        const valuetypeArray = {{ valuetype_array | tojson }};
+        const hasinv = {{ hasinv }};
+        let currentWeek = 1;
+        let remainingInventory = hasinv === 1 ? {{ init_inv }} : null;
+
+        const ncustArray = [];
+        const salesArray = [];
+        const endInvArray = [];
+        const priceHist = [];
+
+        function updateValuationMessage() {
+            const valuationType = valuetypeArray[currentWeek - 1];
+            const weekDisplay = `Current Week: ${currentWeek}`;
+            const message = valuationType === 'full' ? "" : `This week, arriving customers have ${valuationType} valuations.`;
+            document.getElementById("weekIndicator").textContent = weekDisplay;
+            document.getElementById("valuationMessage").textContent = message;
+        }
+
+        function submitPrice(event) {
+            event.preventDefault();
+
+            const priceInput = document.getElementById('price');
+            const price = parseFloat(priceInput.value);
+
+            if (isNaN(price) || currentWeek > 5) return;
+
+            priceHist.push(price);
+
+            const weeklyVals = valuations[currentWeek - 1];
+            const ncustomers = weeklyVals.length;
+            const demand = weeklyVals.filter(val => val >= price).length;
+            const sales = hasinv === 1 && remainingInventory !== null 
+                        ? Math.min(demand, remainingInventory) 
+                        : demand;
+
+            const no_purchase = ncustomers - sales;
+            const fraction = ncustomers > 0 ? sales / ncustomers : 0;
+
+            if (hasinv === 1 && remainingInventory !== null) {
+                remainingInventory -= sales;
+                document.getElementById('remainingInventory').textContent = remainingInventory;
+            }
+
+            const priceList = document.getElementById('priceList');
+            const listItem = document.createElement('li');
+            listItem.textContent = `Week ${currentWeek}: Price $${price}, Num. Customers ${ncustomers}, Sales ${sales}`;
+            priceList.appendChild(listItem);
+
+            ncustArray.push(ncustomers);
+            salesArray.push(sales);
+            endInvArray.push(remainingInventory);
+
+            const priceSource = Bokeh.documents[0].get_model_by_name('price_data_source');
+            if (priceSource) {
+                priceSource.data['y'][currentWeek - 1] = price;
+                priceSource.change.emit();
+            }
+
+            const barSource = Bokeh.documents[0].get_model_by_name('bar_data_source');
+            if (barSource) {
+                const newData = {
+                    week: barSource.data['week'],
+                    sales: [...barSource.data['sales']],
+                    no_purchase: [...barSource.data['no_purchase']],
+                    customers: [...barSource.data['customers']],
+                    fraction: [...barSource.data['fraction']],
+                };
+
+                newData['sales'][currentWeek - 1] = sales;
+                newData['no_purchase'][currentWeek - 1] = no_purchase;
+                newData['customers'][currentWeek - 1] = ncustomers;
+                newData['fraction'][currentWeek - 1] = fraction;
+
+                barSource.data = newData;
+                barSource.change.emit();
+            }
+
+            // Increment the current week
+            currentWeek += 1;
+
+            // Update the week indicator text with the full string, including the current week number
+            document.getElementById('weekIndicator').textContent = `Current Week: ${currentWeek}`;
+
+            // Update the valuation message directly
+            const valuationType = valuetypeArray[currentWeek - 1];
+            document.getElementById("valuationMessage").innerHTML =
+            valuationType === 'full'
+                ? ""
+                : `This week, arriving customers have <strong>${valuationType.toUpperCase()}</strong> valuations.`;
+
+            // Check for end of game to disable inputs if necessary
+            if (currentWeek > 5) {
+                document.getElementById('submitPriceButton').disabled = true;
+                priceInput.disabled = true;
+                document.getElementById('submitResultsForm').style.display = 'inline';
+                document.getElementById('weekIndicator').textContent = "Game round finished";
+                document.getElementById("valuationMessage").textContent = "";
+            }
+
+            priceInput.value = '';
+        }
+
+
+
+        function populateResults() {
+            // Ensure priceHist, ncustArray, salesArray, and endInvArray are populated
+            document.getElementById('price_hist_data').value = priceHist.join(',');
+            document.getElementById('ncust_data').value = ncustArray.join(',');
+            document.getElementById('sales_data').value = salesArray.join(',');
+            document.getElementById('end_inv_data').value = endInvArray.join(',');
+        }
+
+        updateValuationMessage();
+        // Set initial valuation message on page load
+        const valuationType = valuetypeArray[currentWeek - 1];
+        document.getElementById("valuationMessage").innerHTML =
+            valuationType === 'full'
+                ? ""
+                : `This week, arriving customers have <strong>${valuationType.toUpperCase()}</strong> valuations.`;
+    </script>
+{% endblock %}
