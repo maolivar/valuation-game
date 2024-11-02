@@ -131,7 +131,7 @@
             // Update the valuation message directly
             const valuationType = valuetypeArray[currentWeek - 1];
             document.getElementById("valuationMessage").innerHTML =
-            valuationType === 'full'
+            valuationType === 'full' || !valuationType
                 ? ""
                 : `This week, arriving customers have <strong>${valuationType.toUpperCase()}</strong> valuations.`;
 
@@ -161,7 +161,7 @@
         // Set initial valuation message on page load
         const valuationType = valuetypeArray[currentWeek - 1];
         document.getElementById("valuationMessage").innerHTML =
-            valuationType === 'full'
+            valuationType === 'full' || !valuationType
                 ? ""
                 : `This week, arriving customers have <strong>${valuationType.toUpperCase()}</strong> valuations.`;
     </script>
