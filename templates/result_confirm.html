@@ -3,6 +3,12 @@
 {% block body %}
     <h2> Results for Group {{ groupname }} submitted successfully. </h2>
 
+    {% if is_update %}
+        <p style="background-color:#fff3cd; border:1px solid #ffe69c; padding:10px; border-radius:4px;">
+            A previous submission for this group and round was found and has been replaced with this one.
+        </p>
+    {% endif %}
+
     {% for table in tables %}
                 {{ table|safe }}
     {% endfor %}

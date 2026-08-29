@@ -7,6 +7,11 @@
 {% endblock %}
 
 {% block body %}
+    {% if upload_error %}
+        <p style="background-color:#f8d7da; border:1px solid #f5c2c7; padding:10px; border-radius:4px;">
+            {{ upload_error }}
+        </p>
+    {% endif %}
     <h2> Game Password: {{ gameid }} </h2>
     <h2> Results for simulation round: {{ gametype }} </h2>
 

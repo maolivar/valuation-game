@@ -1,5 +1,9 @@
 venv/
 
+# Local SQLite game database (dev fallback only; production uses Postgres).
+# Never committed: it holds real student results and is regenerated on each run.
+gameresults.sqlite
+
 # Created by .ignore support plugin (hsz.mobi)
 ### Python template
 # Byte-compiled / optimized / DLL files

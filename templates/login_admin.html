@@ -9,10 +9,15 @@
 
     <div class="container">
         Create new game:
-        <form action= {{ url_for('results_dashboard') }} method="post">
+        <form action= {{ url_for('results_dashboard') }} method="post" enctype="multipart/form-data">
              <input type="hidden" name="gameid" value="{{ newgameid }}">
             <input type="hidden" name="isnew" value=1>
             <input type="hidden" name="gametype" value="base">
+            <p>
+            <label for="valuations_file">Custom valuations file (optional, one number per line):</label>
+            <input type="file" id="valuations_file" name="valuations_file" accept=".txt">
+            <br><small>Leave empty to use the default valuations.</small>
+            </p>
              <input type="submit" value="New Game">
         </form>
 
