@@ -1,5 +1,7 @@
 {% extends 'head_template.html' %}
 
+{% block title %}Play{% endblock %}
+
 {% block js_head %}
     {{ css_resources|safe }}
     {{ js_resources|safe }}
@@ -9,6 +11,7 @@
 {% block body %}
     <div class="container">
         <h1>Game: {{ gameid }} | Group: {{ groupname }}</h1>
+        <h3>Round: {{ gamename }}</h3>
 
         <p>{{ game_header }}</p>  <!-- Display game header -->
 

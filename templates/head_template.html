@@ -5,7 +5,8 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
-    <title>Valuation Game</title>
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/favicon.png') }}">
+    <title>{% block title %}Valuation Game{% endblock %}</title>
 
     {% block js_head %}
     {% endblock %}
@@ -13,7 +14,8 @@
 
 <body>
 <header>
-<h1 class="logo"> Valuation Game</h1>
+  <img class="header-logo" src="{{ url_for('static', filename='images/logo-fen.png') }}" alt="FEN UChile">
+  <h1 class="logo">Valuation Game</h1>
 </header>
 
 {% block body %}

@@ -1,5 +1,7 @@
 {% extends "head_template.html" %}
 
+{% block title %}Results Submitted{% endblock %}
+
 {% block body %}
     <h2> Results for Group {{ groupname }} submitted successfully. </h2>
 
@@ -10,7 +12,9 @@
     {% endif %}
 
     {% for table in tables %}
+        <div class="table-wrapper">
                 {{ table|safe }}
+        </div>
     {% endfor %}
 
     {% if nextgame %}

@@ -1,11 +1,10 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Manage Games</title>
-</head>
-<body>
-    <h1>Manage Games</h1>
+{% extends 'head_template.html' %}
+
+{% block title %}Manage Games{% endblock %}
+
+{% block body %}
+<div class="container">
+    <h2>Manage Games</h2>
 
     <!-- Form to select a game ID and filter/delete -->
     <form method="POST" action="{{ url_for('manage_games') }}">
@@ -25,11 +24,12 @@
     <!-- Display Results for Selected Game -->
     {% if game_results and selected_gameid %}
         <h2>Results for Game ID: {{ selected_gameid }}</h2>
-        <table border="1">
+        <div class="table-wrapper">
+        <table>
             <tr>
                 <th>Timestamp</th>
                 <th>Game ID</th>
-                <th>Game Type</th>
+                <th>Round</th>
                 <th>Group ID</th>
                 <th>Period</th>
                 <th>Price</th>
@@ -41,7 +41,7 @@
                 <tr>
                     <td>{{ row.timestamp }}</td>
                     <td>{{ row.gameid }}</td>
-                    <td>{{ row.gametype }}</td>
+                    <td>{{ gamenames.get(row.gametype, row.gametype) }}</td>
                     <td>{{ row.groupid }}</td>
                     <td>{{ row.period }}</td>
                     <td>{{ row.price }}</td>
@@ -51,10 +51,11 @@
                 </tr>
             {% endfor %}
         </table>
+        </div>
     {% elif selected_gameid %}
         <p>No results found for Game ID: {{ selected_gameid }}</p>
     {% else %}
         <p>Please select a game to view results.</p>
     {% endif %}
-</body>
-</html>
+</div>
+{% endblock %}

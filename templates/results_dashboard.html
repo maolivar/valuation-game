@@ -1,5 +1,7 @@
 {% extends "head_template.html" %}
 
+{% block title %}Dashboard{% endblock %}
+
 {% block js_head %}
     {{ js_resources|indent(4)|safe }}
     {{ css_resources|indent(4)|safe }}
@@ -30,9 +32,9 @@
         <select id="gametype" name="gametype" >
             {% for g in typelist %}
                 {% if g == gametype %}
-                    <option value="{{ g }}" selected>{{ g }}</option>
+                    <option value="{{ g }}" selected>{{ gamenames.get(g, g) }}</option>
                 {% else %}
-                    <option value="{{ g }}">{{ g }}</option>
+                    <option value="{{ g }}">{{ gamenames.get(g, g) }}</option>
                 {% endif %}
             {% endfor %}
         </select>

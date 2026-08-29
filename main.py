@@ -43,9 +43,9 @@ INITINV = 40                # initial inventory for scenarios with inventory
 GAMEVALUES = {'base':['full']*NPERIODS,
               'inv':['full']*NPERIODS,
               'disc':['low']*(NPERIODS-NPERIODS_HIGH)+['high']*NPERIODS_HIGH}
-GAMENAMES = {'base': 'No inventory',
-             'inv': 'Inventory',
-             'disc': 'Inventory+Price discrim.'}
+GAMENAMES = {'base': 'Unlimited Inventory',
+             'inv': 'Limited Inventory',
+             'disc': 'Limited Inventory + Demand Segmentation'}
 HIGHVALUE_CUT = 0.2
 NUMCUST_LOW = 10
 NUMCUST_HIGH = 20
@@ -321,6 +321,7 @@ def maingame():
         gameid=gameid,
         groupname=groupname,
         gametype=gametype,
+        gamename=GAMENAMES.get(gametype, gametype),
         game_header=game_header,  # Pass the header text to the HTML template
         currentWeek=1,
         valuetype_array=valuetype_array  # Pass the valuetype array to the HTML
@@ -506,6 +507,7 @@ def results_dashboard():
                            gameid= gameid,
                            gametype= gametype,
                            typelist = GAMETYPES,
+                           gamenames = GAMENAMES,
                            gamelist = gamelist,
                            plot_script=script,
                            plot_div=div,
@@ -681,7 +683,8 @@ def manage_games():
         'manage_games.html',
         active_games=active_games,
         selected_gameid=selected_gameid,
-        game_results=game_results.to_dict(orient='records')
+        game_results=game_results.to_dict(orient='records'),
+        gamenames=GAMENAMES
     )
 
 
