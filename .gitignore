@@ -78,7 +78,8 @@ target/
 .ipynb_checkpoints
 
 # pyenv
-.python-version
+# NOTE: .python-version is intentionally NOT ignored here — Heroku's Python
+# buildpack reads it to pin the app's Python version (replaces runtime.txt).
 
 # celery beat schedule file
 celerybeat-schedule
