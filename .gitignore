@@ -1,4 +1,10 @@
 venv/
+.DS_Store
+
+# Raw uploaded logo files at repo root: the processed copies actually used
+# by the app live under static/images/ instead.
+Logofenuchile.png
+Logo(2).jpg
 
 # Local SQLite game database (dev fallback only; production uses Postgres).
 # Never committed: it holds real student results and is regenerated on each run.
