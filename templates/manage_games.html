@@ -6,17 +6,39 @@
 <div class="container">
     <h2>Manage Games</h2>
 
-    <!-- Form to select a game ID and filter/delete -->
+    {% if deleted %}
+        <p style="background-color:#d1e7dd; border:1px solid #badbcc; padding:10px; border-radius:4px;">
+            Game {{ deleted.gameid }} was permanently deleted, together with {{ deleted.nresults }} result rows.
+        </p>
+    {% endif %}
+
+    <!-- Form to select a game ID and view/download/delete -->
     <form method="POST" action="{{ url_for('manage_games') }}">
         <label for="gameid">Select Game ID:</label>
         <select name="gameid" id="gameid" required>
-            {% for g in active_games %}
-                <option value="{{ g }}" {% if g == selected_gameid %}selected{% endif %}>{{ g }}</option>
+            {% for g, info in game_summaries.items() %}
+                <option value="{{ g }}" data-groups="{{ info.groups }}" data-rows="{{ info.rows }}"
+                        {% if g == selected_gameid %}selected{% endif %}>
+                    {{ g }} ({{ info.groups }} groups)
+                </option>
             {% endfor %}
         </select>
         <button type="submit" name="filter">Filter</button>
-        <button type="submit" name="delete" onclick="return confirm('Are you sure you want to delete all entries for this game?');">Delete</button>
+        <button type="submit" formaction="{{ url_for('download_table') }}">Download CSV</button>
+        <button type="submit" name="delete" style="background-color:#b02a37;"
+                onclick="return confirmDelete();">Delete</button>
+        <p><small>Deleting a game permanently removes the game and all of its submitted results from the database. This cannot be undone, so download the CSV first if you want to keep the data.</small></p>
     </form>
+    <script>
+        function confirmDelete() {
+            var opt = document.getElementById('gameid').selectedOptions[0];
+            if (!opt) { return false; }
+            return confirm('WARNING: this will PERMANENTLY delete game ' + opt.value +
+                           ' and all of its results (' + opt.dataset.rows + ' rows from ' +
+                           opt.dataset.groups + ' groups).\n\nThis cannot be undone. ' +
+                           'Download the CSV first if you want to keep the data.\n\nDelete this game?');
+        }
+    </script>
     <div style="margin-top: 20px;">
         <a href="{{ url_for('admin_login') }}">Go to Admin Login</a>
     </div>

@@ -120,41 +120,35 @@ def generate_valuations(seed, valdist):
     return valuations
 
 
-# Per-gameid caches: a game's seed/valuations are immutable once created, so
-# recomputing them from the stored (seed, valuations_text) is safe to cache
-# in-process (and safe across gunicorn worker processes, since each worker
-# recomputes the identical result from the same stored inputs).
-_game_record_cache = {}
-_game_valuations_cache = {}
+# A game's valuations are fully determined by its stored (seed,
+# valuations_text), so they're cached on those inputs rather than on the
+# gameid. The games row itself is always read fresh: a gameid can be reused
+# after the game is deleted (e.g. the default id 12345), and with several
+# gunicorn workers a per-gameid cache could never be invalidated everywhere.
+_valuations_cache = {}
 
 
 def get_game_record(gameid):
     gameid = int(gameid)
-    if gameid in _game_record_cache:
-        return _game_record_cache[gameid]
     with engine.connect() as con:
-        row = con.execute(text("SELECT seed, valuations_text FROM games WHERE gameid=:gid"),
-                           {"gid": gameid}).fetchone()
+        row = con.execute(text("""SELECT seed, valuations_text FROM games WHERE gameid=:gid
+                                  ORDER BY timestamp LIMIT 1"""),
+                          {"gid": gameid}).fetchone()
     if row is None:
-        record = (SEED, None)  # unknown/legacy game: fall back to the original fixed sequence
-    else:
-        seed, valuations_text = row
-        record = (seed if seed is not None else SEED, valuations_text)
-    _game_record_cache[gameid] = record
-    return record
+        return (SEED, None)  # unknown/legacy game: fall back to the original fixed sequence
+    seed, valuations_text = row
+    return (seed if seed is not None else SEED, valuations_text)
 
 
 def get_game_valuations(gameid):
     """Return {gametype: [[valuations per week], ...]} for this game, using
     its stored seed and (optionally custom-uploaded) valuations pool."""
-    gameid = int(gameid)
-    if gameid in _game_valuations_cache:
-        return _game_valuations_cache[gameid]
     seed, valuations_text = get_game_record(gameid)
-    valdist = load_valuation_list(valuations_text) if valuations_text else DEFAULT_VALDIST
-    valuations = generate_valuations(seed, valdist)
-    _game_valuations_cache[gameid] = valuations
-    return valuations
+    key = (seed, hash(valuations_text))
+    if key not in _valuations_cache:
+        valdist = load_valuation_list(valuations_text) if valuations_text else DEFAULT_VALDIST
+        _valuations_cache[key] = generate_valuations(seed, valdist)
+    return _valuations_cache[key]
 
 
 # ----------- DATABASE ----------------------------
@@ -483,9 +477,14 @@ def results_dashboard():
 
         currtime = datetime.datetime.now()
         with engine.begin() as con:
-            con.execute(text("""INSERT INTO games (gameid, gamestatus, timestamp, seed, valuations_text)
-                                 VALUES (:gameid, 'open', :ts, :seed, :vtext)"""),
-                        {"gameid": gameid, "ts": str(currtime), "seed": seed, "vtext": valuations_text})
+            # Re-submitting the "New Game" form (e.g. refreshing the page)
+            # must not add a second row with a different seed for this gameid.
+            exists = con.execute(text("SELECT COUNT(*) FROM games WHERE gameid=:gid"),
+                                 {"gid": gameid}).scalar()
+            if not exists:
+                con.execute(text("""INSERT INTO games (gameid, gamestatus, timestamp, seed, valuations_text)
+                                     VALUES (:gameid, 'open', :ts, :seed, :vtext)"""),
+                            {"gameid": gameid, "ts": str(currtime), "seed": seed, "vtext": valuations_text})
 
     # get list of open games
     gamelist = get_active_games()
@@ -624,8 +623,8 @@ def overall_standing(gameid):
 
 @app.route('/download_results', methods=['POST'])
 def download_table():
-    # Get input values from form
-    filter_value = request.form['gameid']
+    # Get input values from form (int() also keeps the filename header safe)
+    filter_value = str(int(request.form['gameid']))
 
     with engine.connect() as con:
         result = con.execute(text("SELECT * FROM results WHERE gameid=:gid"), {"gid": filter_value})
@@ -657,14 +656,28 @@ def color_gen(ncolors):
     return colorlist
 
 
+def get_game_summaries():
+    """Every gameid with stored data -- open games plus any results whose game
+    row is missing (legacy data), so all of it can be downloaded or deleted --
+    mapped to its number of groups and result rows."""
+    with engine.connect() as con:
+        games = con.execute(text("SELECT DISTINCT gameid FROM games")).fetchall()
+        counts = con.execute(text("""SELECT gameid, COUNT(DISTINCT groupid), COUNT(*)
+                                     FROM results GROUP BY gameid""")).fetchall()
+    summaries = {str(g): {'groups': 0, 'rows': 0} for (g,) in games}
+    for gid, ngroups, nrows in counts:
+        summaries[str(gid)] = {'groups': ngroups, 'rows': nrows}
+    return dict(sorted(summaries.items()))
+
+
 @app.route('/manage_games', methods=['GET', 'POST'])
 def manage_games():
-    active_games = [str(game) for game in get_active_games()]  # Ensure all game IDs are strings
     selected_gameid = None
     game_results = pd.DataFrame()
+    deleted = None
 
     if request.method == 'POST':
-        selected_gameid = str(request.form.get('gameid'))  # Convert selected game ID to string
+        selected_gameid = request.form.get('gameid')
 
         # Handle filtering
         if 'filter' in request.form and selected_gameid:
@@ -672,19 +685,23 @@ def manage_games():
                 game_results = pd.read_sql(text("SELECT * FROM results WHERE gameid = :gid"),
                                            con, params={"gid": selected_gameid})
 
-        # Handle deletion
+        # Handle deletion: the game and all of its results, in one transaction
         elif 'delete' in request.form and selected_gameid:
             with engine.begin() as con:
-                con.execute(text("DELETE FROM results WHERE gameid = :gid"), {"gid": selected_gameid})
+                nresults = con.execute(text("DELETE FROM results WHERE gameid = :gid"),
+                                       {"gid": selected_gameid}).rowcount
                 con.execute(text("DELETE FROM games WHERE gameid = :gid"), {"gid": int(selected_gameid)})
-            return redirect(url_for('manage_games'))
+            return redirect(url_for('manage_games', deleted=selected_gameid, nresults=nresults))
+    elif request.args.get('deleted'):
+        deleted = {'gameid': request.args.get('deleted'), 'nresults': request.args.get('nresults', 0)}
 
     return render_template(
         'manage_games.html',
-        active_games=active_games,
+        game_summaries=get_game_summaries(),
         selected_gameid=selected_gameid,
         game_results=game_results.to_dict(orient='records'),
-        gamenames=GAMENAMES
+        gamenames=GAMENAMES,
+        deleted=deleted
     )
 
 
